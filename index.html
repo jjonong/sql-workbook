@@ -330,13 +330,13 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
             <div class="stat"><b id="st-done">0</b><span id="st-total">푼 문제</span></div>
           </div>
           <div class="body">
-            <div class="dg-tools"><button type="button" class="to-sync" id="to-sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>다른 기기로 옮기기</button><button type="button" id="dg-open">모두 펼치기</button><span>·</span><button type="button" id="dg-close">모두 접기</button></div>
+            <div class="dg-tools"><button type="button" class="to-sync" id="to-sync"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg>기록 저장하기</button><button type="button" id="dg-open">모두 펼치기</button><span>·</span><button type="button" id="dg-close">모두 접기</button></div>
             <div class="dgrps" id="dots"></div>
             <div class="legend"><span class="l-ok">정답</span><span class="l-bad">오답</span><span class="l-seen">답만 확인</span><span class="l-draft">작성 중</span></div>
           </div>
         </div>
         <div class="panel collapsible" id="panel-sync">
-          <h3>기록 옮기기</h3>
+          <h3>기록 저장·불러오기</h3>
           <div class="body">
             <p class="note-sm" style="margin-top:0">기록은 이 브라우저에만 저장돼요. 다른 기기에서 이어서 풀려면 여기서 저장하고, 그 기기에서 불러오세요.</p>
             <div class="sync-row"><button class="btn small" id="sync-save" type="button">파일로 저장</button><button class="btn small" id="sync-load" type="button">파일 불러오기</button><input type="file" id="sync-file" accept=".json,.txt,application/json,text/plain" hidden></div>
