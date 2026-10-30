@@ -68,7 +68,26 @@ h1, h2, h3 { text-wrap: balance; line-height: 1.3; }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .stat span { font-size: 12px; color: var(--muted); }
-.dots { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin-top: 12px; }
+.dots { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; padding: 4px 2px 10px 2px; }
+/* progress grouped by chapter: each group folds open/closed */
+.dg-tools { display: flex; justify-content: flex-end; gap: 2px; align-items: center; margin: 12px 0 4px; font-size: 11.5px; color: var(--muted); }
+.dg-tools button { background: none; border: 0; padding: 2px 4px; font: inherit; color: var(--accent); cursor: pointer; }
+.dgrps { border-top: 1px solid var(--line-2); }
+.dgrp { border-bottom: 1px solid var(--line-2); }
+.dgrp > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 2.6em minmax(0, 1fr) auto 10px; align-items: center; gap: 6px; padding: 7px 2px; font-size: 12.5px; border-radius: 4px; }
+.dgrp > summary::-webkit-details-marker { display: none; }
+.dgrp > summary:hover { background: var(--surface-2); }
+.dgrp > summary::after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; justify-self: center; grid-column: 4; grid-row: 1; }
+.dgrp[open] > summary::after { transform: rotate(45deg); }
+.dgrp.cur > summary .dg-t { color: var(--accent); font-weight: 600; }
+.dg-n { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+.dg-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-c { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dg-bar { grid-column: 2 / 4; grid-row: 2; height: 3px; border-radius: 2px; background: var(--surface-2); overflow: hidden; display: flex; margin-top: -1px; }
+.dg-bar i { display: block; height: 100%; }
+.dg-bar .b-ok { background: var(--ok); } .dg-bar .b-bad { background: var(--bad); } .dg-bar .b-seen { background: var(--marker); }
+.dsub { grid-column: 1 / -1; font-size: 10.5px; color: var(--muted); margin: 4px 0 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsub:first-child { margin-top: 0; }
 .dot { aspect-ratio: 1; border-radius: 3px; border: 1px solid var(--line); background: var(--surface-2); padding: 0; cursor: pointer; font-size: 0; }
 .dot[data-st="draft"] { border-color: var(--accent); }
 .dot[data-st="ok"] { background: var(--ok); border-color: var(--ok); }
@@ -234,6 +253,11 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
 .toggle-toc { display: none; }
 .mob-only { display: none; font-weight: 500; text-transform: none; letter-spacing: 0; }
 .rail .collapsible:not(.open) .stats { margin-top: 10px; }
+.rail .collapsible:not(.open) .body { display: none; }
+.rail .collapsible h3 { cursor: pointer; margin: 0; display: flex; align-items: center; gap: 6px; user-select: none; }
+.rail .collapsible h3::after { content: ""; margin-left: auto; width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); transition: transform .15s; }
+.rail .collapsible:not(.open) h3::after { transform: rotate(-45deg); }
+.rail .collapsible.open h3 { margin-bottom: 10px; }
 .stage-pick { display: none; }
 .stage-pick select { font: inherit; font-size: 15px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: 100%; margin-top: 4px; }
 
@@ -247,9 +271,6 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
   .mob-only { display: inline; }
   .stage-pick { display: block; margin-bottom: 14px; font-size: 12px; color: var(--muted); font-weight: 600; }
   #panel-stages { display: none; }
-  .rail .collapsible:not(.open) .body { display: none; }
-  .rail .collapsible h3 { cursor: pointer; margin: 0; display: flex; justify-content: space-between; }
-  .rail .collapsible.open h3 { margin-bottom: 10px; }
   .dots { grid-template-columns: repeat(15, 1fr); }
 }
 @media (max-width: 560px) {
@@ -289,13 +310,14 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
     <div class="pgrid">
       <aside class="rail" aria-label="진행 상황">
         <div class="panel collapsible open" id="panel-progress">
-          <h3>진행 상황<span class="mob-only"> · 칸 보기</span></h3>
+          <h3>진행 상황</h3>
           <div class="stats">
             <div class="stat"><b id="st-ok">0</b><span>맞힌 문제</span></div>
             <div class="stat"><b id="st-done">0</b><span id="st-total">푼 문제</span></div>
           </div>
           <div class="body">
-            <div class="dots" id="dots"></div>
+            <div class="dg-tools"><button type="button" id="dg-open">모두 펼치기</button><span>·</span><button type="button" id="dg-close">모두 접기</button></div>
+            <div class="dgrps" id="dots"></div>
             <div class="legend"><span class="l-ok">정답</span><span class="l-bad">오답</span><span class="l-seen">답만 확인</span><span class="l-draft">작성 중</span></div>
           </div>
         </div>
@@ -1232,6 +1254,14 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
     for (var n = 1; n <= TOTAL; n++) { var s = statusOf(n); if (s === 'ok') ok++; if (s === 'ok' || s === 'bad' || s === 'seen') done++; }
     $('#st-ok').textContent = ok; $('#st-done').textContent = done;
     $$('.dot').forEach(function (d) { var n = +d.dataset.n; d.dataset.st = statusOf(n); d.classList.toggle('dim', !lvOk(LV_OF[n])); d.title = n + '번 · ' + LV_NAME[LV_OF[n]] + (ST_LABEL[d.dataset.st] ? ' · ' + ST_LABEL[d.dataset.st] : ''); });
+    $$('.dgrp').forEach(function (g) {
+      var items = STAGES[+g.dataset.stage].items.filter(function (it) { return lvOk(it.lv); }), c = { ok: 0, bad: 0, seen: 0 };
+      items.forEach(function (it) { var x = statusOf(it.n); if (c[x] !== undefined) c[x]++; });
+      var t = items.length || 1;
+      g.querySelector('.dg-c').textContent = items.length ? c.ok + '/' + items.length : '-';
+      g.querySelector('.dg-bar').innerHTML = ['ok', 'bad', 'seen'].map(function (k) { return c[k] ? '<i class="b-' + k + '" style="width:' + (c[k] * 100 / t) + '%"></i>' : ''; }).join('');
+      g.title = '맞힘 ' + c.ok + ' · 다시 풀기 ' + c.bad + ' · 답 확인 ' + c.seen + ' / ' + items.length + '문제';
+    });
     $$('.stages button').forEach(function (b) {
       var items = STAGES[+b.dataset.stage].items.filter(function (it) { return lvOk(it.lv); }), c = items.filter(function (it) { return statusOf(it.n) === 'ok'; }).length;
       b.querySelector('.sc').textContent = items.length ? c + '/' + items.length : '-';
@@ -1249,8 +1279,13 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
   function buildRail() {
     var dots = '';
     $('#st-total').textContent = '푼 문제 / ' + TOTAL;
-    for (var n = 1; n <= TOTAL; n++) dots += '<button type="button" class="dot" data-n="' + n + '" aria-label="' + n + '번 문제로 가기">' + n + '</button>';
+    STAGES.forEach(function (s, i) {
+      dots += '<details class="dgrp" data-stage="' + i + '"><summary><span class="dg-n">' + s.label + '</span><span class="dg-t">' + esc(s.short) + '</span><span class="dg-c"></span><i class="dg-bar"></i></summary><div class="dots">' +
+        s.subs.map(function (sb) { return '<span class="dsub">' + esc(sb.title) + '</span>' + sb.items.map(function (it) { return '<button type="button" class="dot" data-n="' + it.n + '" aria-label="' + it.n + '번 문제로 가기">' + it.n + '</button>'; }).join(''); }).join('') + '</div></details>';
+    });
     $('#dots').innerHTML = dots;
+    $('#dg-open').addEventListener('click', function () { $$('.dgrp').forEach(function (d) { d.open = true; }); });
+    $('#dg-close').addEventListener('click', function () { $$('.dgrp').forEach(function (d) { d.open = false; }); });
     $('#stages').innerHTML = STAGES.map(function (s, i) {
       var sep = (s.kind !== 'chapter' && (i === 0 || STAGES[i - 1].kind === 'chapter')) ? '<li class="sep">더 풀어 보기</li>' : '';
       return sep + '<li><button type="button" data-stage="' + i + '"><span class="sn">' + s.label + '</span><span>' + esc(s.short) + '</span><span class="sc"></span></button></li>';
@@ -1264,7 +1299,7 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
     $('#schema').innerHTML = sch;
     $('#dots').addEventListener('click', function (e) { var b = e.target.closest('.dot'); if (b) gotoProblem(+b.dataset.n); });
     $('#stages').addEventListener('click', function (e) { var b = e.target.closest('[data-stage]'); if (b) { showStage(+b.dataset.stage); window.scrollTo({ top: 0 }); } });
-    $$('.rail .collapsible h3').forEach(function (h) { h.addEventListener('click', function () { if (window.matchMedia('(max-width: 960px)').matches) h.parentNode.classList.toggle('open'); }); });
+    $$('.rail .collapsible h3').forEach(function (h) { h.addEventListener('click', function () { h.parentNode.classList.toggle('open'); }); });
     if (window.matchMedia('(max-width: 960px)').matches) { $('#panel-progress').classList.remove('open'); $('#panel-stages').classList.remove('open'); $('#panel-schema').classList.remove('open'); $('#panel-db').classList.remove('open'); }
     else { $('#panel-schema').classList.add('open'); $('#panel-db').classList.add('open'); }
     $('#reset-db').addEventListener('click', function () {
@@ -1301,6 +1336,7 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
       (i < STAGES.length - 1 ? '<button class="btn primary" type="button" data-go="' + (i + 1) + '">' + STAGES[i + 1].label + ' ' + esc(STAGES[i + 1].short) + ' →</button>' : '') + '</div>';
     var v = $('#stage-view'); v.innerHTML = h;
     $$('.stages button').forEach(function (b) { b.setAttribute('aria-current', +b.dataset.stage === i ? 'true' : 'false'); });
+    $$('.dgrp').forEach(function (g) { var cur = +g.dataset.stage === i; g.classList.toggle('cur', cur); if (cur) g.open = true; });
     $$('textarea', v).forEach(function (ta) { ta.value = S.ans[ta.dataset.n] || ''; fit(ta); });
   }
   function cardHtml(it) {
