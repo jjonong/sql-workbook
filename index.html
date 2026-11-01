@@ -23,6 +23,7 @@
   --ok: #54c690; --ok-soft: #173326; --bad: #f07a70; --bad-soft: #3a1f1d; --warn: #e3b14b;
   --code-bg: #111821; --code-ink: #dbe2ec; --hl-kw: #8aa4ff; --hl-fn: #d29bf2; --hl-str: #f0a36e; --hl-num: #5fd4c1; --hl-com: #7d8898;
   --shadow: 0 1px 2px rgba(0,0,0,.3); --doc-text: #a7b0bd; --box-strong: #f1f4f8; --box-text: #d6dce5; --lv1: #54c690; --lv2: #e9b949; --lv3: #f07a70; color-scheme: dark; } }
+:root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] {
   --bg: #0e131a; --surface: #151c26; --surface-2: #19212d; --ink: #e3e8ef; --muted: #98a3b3; --line: #2a3443; --line-2: #222b38;
   --accent: #8aa4ff; --accent-ink: #0e131a; --accent-soft: #1e2a4a; --marker: #e9b949; --marker-soft: #3a3020;
@@ -52,6 +53,12 @@ h1, h2, h3 { text-wrap: balance; line-height: 1.3; }
 .tabs a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
 .tabs a:hover:not([aria-current="page"]) { color: var(--ink); }
 .top .spacer { flex: 1; }
+.theme-btn { width: 34px; height: 34px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; margin-left: 10px; transition: color .15s, border-color .15s, background .15s; }
+.theme-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.theme-btn svg { width: 17px; height: 17px; }
+.theme-btn .i-sun { display: none; }
+.is-dark .theme-btn .i-sun { display: block; }
+.is-dark .theme-btn .i-moon { display: none; }
 .engine-pill { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .engine-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); display: inline-block; }
 .engine-pill[data-ready="1"] i { background: var(--ok); }
@@ -327,6 +334,7 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
 }
 </style>
 
+<script>(function () { try { var t = localStorage.getItem('sqlwb:theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();</script>
 <header class="top">
   <div class="top-in">
     <div class="brand"><span class="prompt">SQL&gt;</span> SQL 정석 워크북 <small>Oracle 실습 · 교안 1~14장</small></div>
@@ -337,6 +345,10 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
     </nav>
     <div class="spacer"></div>
     <div class="engine-pill" id="engine-pill" title="브라우저 안에서 SQL을 실행하는 실행기 상태"><i></i><span id="engine-text">실행기 불러오는 중…</span></div>
+    <button type="button" class="theme-btn" id="theme-btn" aria-label="다크 모드로 바꾸기" title="다크 모드로 바꾸기">
+      <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
   </div>
 </header>
 
@@ -1351,6 +1363,23 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
     });
     place();
   }
+  // ---------- light / dark toggle (follows the system until the viewer picks one) ----------
+  function initTheme() {
+    var root = document.documentElement, btn = $('#theme-btn'), mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    function isDark() { var t = root.getAttribute('data-theme'); return t ? t === 'dark' : !!(mq && mq.matches); }
+    function sync() {
+      var d = isDark(); document.body.classList.toggle('is-dark', d);
+      var label = d ? '라이트 모드로 바꾸기' : '다크 모드로 바꾸기'; btn.setAttribute('aria-label', label); btn.title = label;
+    }
+    btn.addEventListener('click', function () {
+      var next = isDark() ? 'light' : 'dark'; root.setAttribute('data-theme', next);
+      try { localStorage.setItem('sqlwb:theme', next); } catch (e) {}
+      sync();
+    });
+    if (mq) { var on = function () { if (!root.getAttribute('data-theme')) sync(); }; if (mq.addEventListener) mq.addEventListener('change', on); else if (mq.addListener) mq.addListener(on); }
+    sync();
+  }
+
   // ---------- rendering helpers ----------
   var KW = 'SELECT FROM WHERE AND OR NOT IN IS NULL AS ON JOIN LEFT RIGHT OUTER INNER FULL CROSS GROUP BY ORDER HAVING DISTINCT ALL ANY SOME EXISTS BETWEEN LIKE ESCAPE UNION INTERSECT MINUS EXCEPT CASE WHEN THEN ELSE END INSERT INTO VALUES UPDATE SET DELETE CREATE TABLE VIEW INDEX SEQUENCE SYNONYM PUBLIC ALTER ADD MODIFY DROP RENAME TO TRUNCATE COMMENT COLUMN CONSTRAINT PRIMARY KEY FOREIGN REFERENCES UNIQUE CHECK DEFAULT CASCADE CONSTRAINTS COMMIT ROLLBACK SAVEPOINT GRANT REVOKE ROLE WITH OPTION ADMIN READ ONLY REPLACE ASC DESC OVER PARTITION PIVOT FOR ROLLUP CUBE START INCREMENT MAXVALUE MINVALUE NOCYCLE CYCLE NOCACHE CACHE TRIGGER BEFORE AFTER EACH ROW BEGIN DISABLE ENABLE NUMBER VARCHAR2 CHAR DATE IDENTIFIED USER NULLS FIRST LAST ROWNUM ROWID LEVEL DESCRIBE'.split(' ');
   var KWS = {}; KW.forEach(function (k) { KWS[k] = 1; });
@@ -1797,7 +1826,7 @@ mark { background: var(--marker-soft); color: inherit; border-radius: 2px; }
   document.addEventListener('change', function (e) { if (e.target.id === 'stage-select') { showStage(+e.target.value); window.scrollTo({ top: 0 }); } });
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-go]'); if (b) { showStage(+b.dataset.go); window.scrollTo({ top: 0 }); } });
 
-  buildRail(); showStage(S.stage); refreshStats(); buildDocs(); route(); initScratch(); bootEngine();
+  buildRail(); showStage(S.stage); refreshStats(); buildDocs(); route(); initScratch(); initTheme(); bootEngine();
 })();
 </script>
 
