@@ -7,10 +7,10 @@
 
   // ---------- storage (per-viewer convenience) ----------
   var KEY = 'sqlwb:v3', TOTAL = W.total;
-  var S = { ans: {}, st: {}, stage: 0, level: 0 };
+  var S = { ans: {}, st: {}, stage: 0, level: 0, wrong: {}, wf: 'open', ws: 'recent' };
   try {
     var raw = localStorage.getItem(KEY), v2 = raw ? null : localStorage.getItem('sqlwb:v2');
-    if (raw) { var p = JSON.parse(raw); S.ans = p.ans || {}; S.st = p.st || {}; S.stage = p.stage || 0; S.level = p.level || 0; }
+    if (raw) { var p = JSON.parse(raw); S.ans = p.ans || {}; S.st = p.st || {}; S.stage = p.stage || 0; S.level = p.level || 0; S.wrong = p.wrong || {}; S.wf = p.wf || 'open'; S.ws = p.ws || 'recent'; }
     else if (v2) {
       // carry answers over from the previous numbering (before more problems were added to each chapter)
       var q = JSON.parse(v2); S.level = q.level || 0; S.stage = q.stage || 0;
@@ -28,6 +28,8 @@
     }
   } catch (e) {}
   var saveT = null;
+  // 오답노트를 만들기 전에 틀린 문제도 오답노트에 넣어 둬요
+  Object.keys(S.st).forEach(function (k) { if (S.st[k] === 'bad' && !S.wrong[k]) S.wrong[k] = { c: 1, t: null }; });
   function save() { clearTimeout(saveT); saveT = setTimeout(function () { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 250); }
 
   var ANS = {}; W.answers.forEach(function (a) { ANS[a.n] = a; });
@@ -224,6 +226,7 @@
   function statusOf(n) { var s = S.st[n]; if (s) return s; return (S.ans[n] || '').trim() ? 'draft' : ''; }
   var ST_LABEL = { ok: '정답', bad: '다시 풀기', seen: '답 확인함', draft: '작성 중', '': '' };
   function refreshStats() {
+    wrongBadge();
     var ok = 0, done = 0;
     for (var n = 1; n <= TOTAL; n++) { var s = statusOf(n); if (s === 'ok') ok++; if (s === 'ok' || s === 'bad' || s === 'seen') done++; }
     $('#st-ok').textContent = ok; $('#st-done').textContent = done;
@@ -242,8 +245,13 @@
     });
   }
   function setStatus(n, st) {
+    var prev = S.st[n];
     if (st) S.st[n] = st; else delete S.st[n];
+    if (st === 'bad') { var w = S.wrong[n] || (S.wrong[n] = { c: 0 }); w.c++; w.t = new Date().toISOString(); delete w.ok; }
+    if (st === 'ok' && S.wrong[n] && prev !== 'ok') S.wrong[n].ok = new Date().toISOString();
     save();
+    showRec(n, st === 'bad');
+    wrongMarks(n);
     var card = $('#p-' + n);
     if (card) { var el = card.querySelector('.status'); var s = statusOf(n); el.dataset.st = s; el.textContent = ST_LABEL[s]; }
     refreshStats();
@@ -252,7 +260,7 @@
   // ---------- move records between devices (file or code; nothing leaves the browser otherwise) ----------
   function whenStr(iso) { var d = new Date(iso); if (isNaN(d)) return ''; var z = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
   function syncMsg(t) { $('#sync-msg').textContent = t; }
-  function packRecord() { return { app: 'sql-workbook', v: 3, savedAt: new Date().toISOString(), total: TOTAL, ans: S.ans, st: S.st, stage: S.stage, level: S.level }; }
+  function packRecord() { return { app: 'sql-workbook', v: 3, savedAt: new Date().toISOString(), total: TOTAL, ans: S.ans, st: S.st, wrong: S.wrong, stage: S.stage, level: S.level }; }
   function countOf(o) { return Object.keys(o.st || {}).length + ' 문제 기록, 답 ' + Object.keys(o.ans || {}).filter(function (k) { return (o.ans[k] || '').trim(); }).length + '개'; }
   function b64(bytes) { var s = ''; for (var i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   function unb64(t) { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s = atob(t), u = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
@@ -276,8 +284,10 @@
     var ans = o.ans || {}, st = o.st || {};
     if (o.v === 2 || !o.v) { var a2 = {}, s2 = {}; Object.keys(ans).forEach(function (k) { if (W.v2Map[k]) a2[W.v2Map[k]] = ans[k]; }); Object.keys(st).forEach(function (k) { if (W.v2Map[k]) s2[W.v2Map[k]] = st[k]; }); ans = a2; st = s2; }
     S.ans = ans; S.st = st; S.stage = Math.min(STAGES.length - 1, o.stage || 0); S.level = o.level || 0;
+    S.wrong = (o.v === 3 && o.wrong && typeof o.wrong === 'object') ? o.wrong : {};
+    Object.keys(S.st).forEach(function (k) { if (S.st[k] === 'bad' && !S.wrong[k]) S.wrong[k] = { c: 1, t: null }; });
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
-    showStage(S.stage); refreshStats();
+    showStage(S.stage); refreshStats(); if (location.hash === '#wrong') renderWrong();
     syncMsg('불러왔어요. ' + countOf(S) + (o.savedAt ? ' (' + whenStr(o.savedAt) + ' 저장)' : '') + '.');
   }
   function confirmApply(o) {
@@ -370,7 +380,7 @@
     $('#clear-progress').addEventListener('click', function () { $('#clear-confirm').hidden = false; });
     initSync();
     $('#clear-no').addEventListener('click', function () { $('#clear-confirm').hidden = true; });
-    $('#clear-yes').addEventListener('click', function () { S.ans = {}; S.st = {}; save(); $('#clear-confirm').hidden = true; showStage(S.stage); refreshStats(); });
+    $('#clear-yes').addEventListener('click', function () { S.ans = {}; S.st = {}; S.wrong = {}; save(); $('#clear-confirm').hidden = true; showStage(S.stage); refreshStats(); });
   }
 
   // ---------- stage view ----------
@@ -500,11 +510,15 @@
   function gotoProblem(n) {
     var i = STAGE_OF[n]; if (i == null) return;
     if (!lvOk(LV_OF[n])) { S.level = 0; save(); showStage(i); refreshStats(); }
-    if (location.hash !== '#problems') location.hash = 'problems';
+    var moved = location.hash !== '#problems';
+    if (moved) location.hash = 'problems';
     if (i !== S.stage || !$('#p-' + n)) showStage(i);
-    var c = $('#p-' + n); if (!c) return;
-    c.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
+    var go = function () {
+      var c = $('#p-' + n); if (!c) return;
+      c.scrollIntoView({ behavior: moved ? 'auto' : 'smooth', block: 'start' });
+      c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash');
+    };
+    if (moved) setTimeout(go, 80); else go();
   }
 
   // textarea events
@@ -595,13 +609,124 @@
     });
   }
 
+
+  // ---------- 연관 문제 추천 ----------
+  // 정답 SQL에 쓰인 키워드·함수와 같은 소단원 여부로 비슷한 문제를 골라요
+  var ITEM = {}, SUB_OF = {}, FEAT = {}, DF = {}, NPROB = 0;
+  STAGES.forEach(function (s, i) { s.subs.forEach(function (sb, j) { sb.items.forEach(function (it) { ITEM[it.n] = it; SUB_OF[it.n] = i + '.' + j; }); }); });
+  var REC_STOP = { SELECT: 1, FROM: 1, WHERE: 1, AND: 1, OR: 1, AS: 1, ON: 1, BY: 1, IS: 1, NOT: 1, IN: 1, INTO: 1, VALUES: 1, SET: 1, TABLE: 1, TO: 1, ALL: 1 };
+  Object.keys(ITEM).forEach(function (n) {
+    var a = ANS[n] || {}, f = {}, src = ((a.sql || '') + ' ' + (a.check || '')).toUpperCase();
+    (src.match(/[A-Z_][A-Z0-9_]*/g) || []).forEach(function (w) { if (KWS[w] && !REC_STOP[w]) f[w] = 1; });
+    var fx = src.match(/([A-Z_][A-Z0-9_]*)\s*\(/g) || []; fx.forEach(function (x) { var w = x.replace(/\s*\($/, ''); if (!REC_STOP[w]) f[w] = 1; });
+    (a.kw || []).forEach(function (k) { var w = k.split('|')[0].toUpperCase().trim(); if (w && !REC_STOP[w]) f[w] = 1; });
+    if (f.GROUP && src.indexOf('GROUP BY') >= 0) { f['GROUP BY'] = 1; delete f.GROUP; }
+    if (f.ORDER && src.indexOf('ORDER BY') >= 0) { f['ORDER BY'] = 1; delete f.ORDER; }
+    FEAT[n] = f; NPROB++;
+    Object.keys(f).forEach(function (w) { DF[w] = (DF[w] || 0) + 1; });
+  });
+  function idf(w) { return Math.log(NPROB / (DF[w] || 1)); }
+  var snipEl = document.createElement('div');
+  function snippet(html, len) { snipEl.innerHTML = String(html).replace(/<(br|\/p|\/li|\/div)[^>]*>/gi, ' $&'); var t = snipEl.textContent.replace(/\s+/g, ' ').trim(); return t.length > len ? t.slice(0, len - 1) + '…' : t; }
+  function related(n, k) {
+    var me = FEAT[n] || {}, lv = LV_OF[n], out = [];
+    Object.keys(ITEM).forEach(function (m) {
+      m = +m; if (m === n) return;
+      var f = FEAT[m], shared = Object.keys(me).filter(function (w) { return f[w]; });
+      var sc = shared.reduce(function (t, w) { return t + idf(w); }, 0);
+      if (SUB_OF[m] === SUB_OF[n]) sc += 2.5; else if (STAGE_OF[m] === STAGE_OF[n]) sc += 1;
+      if (sc <= 1) return;
+      if (LV_OF[m] === lv) sc += .6; else if (LV_OF[m] < lv) sc += .3;
+      if ((ANS[m] || {}).mode === 'auto') sc += .5;
+      var st = S.st[m]; if (st === 'ok') sc -= 3; else if (st === 'bad') sc -= .5;
+      shared.sort(function (a, b) { return idf(b) - idf(a); });
+      out.push({ n: m, sc: sc, why: shared.slice(0, 3), sub: SUB_OF[m] === SUB_OF[n] });
+    });
+    out.sort(function (a, b) { return b.sc - a.sc || a.n - b.n; });
+    return out.slice(0, k || 3);
+  }
+  function recHtml(list, attr) {
+    return '<div class="rec-h">비슷한 문제로 한 번 더 연습해 보세요</div><div class="rec-list">' + list.map(function (r) {
+      return '<button type="button" class="rec-i" ' + attr + '="' + r.n + '"><span class="rec-n">' + r.n + '번</span><i class="lvdot lv' + r.lv + '" title="' + r.lvName + '"></i>' +
+        '<span class="rec-t">' + esc(r.text) + '</span><span class="rec-why">' + (r.why.length ? r.why.map(function (w) { return '<code>' + esc(w) + '</code>'; }).join('') : '') + (r.sub ? '<em>같은 소단원</em>' : '') + '</span></button>';
+    }).join('') + '</div>';
+  }
+  function showRec(n, on) {
+    var card = $('#p-' + n); if (!card) return;
+    var box = card.querySelector('.rec');
+    if (!on) { if (box) box.remove(); return; }
+    var list = related(n, 3); if (!list.length) return;
+    if (!box) { box = document.createElement('div'); box.className = 'rec'; card.appendChild(box); }
+    box.innerHTML = recHtml(list.map(function (r) { return { n: r.n, lv: LV_OF[r.n], lvName: LV_NAME[LV_OF[r.n]], text: snippet(ITEM[r.n].html, 70), why: r.why, sub: r.sub }; }), 'data-recgo');
+  }
+  document.addEventListener('click', function (e) { var b = e.target.closest('[data-recgo]'); if (b) gotoProblem(+b.dataset.recgo); });
+
+  // ---------- 오답노트 ----------
+  function wrongList() { return Object.keys(S.wrong).map(Number).filter(function (n) { return ITEM[n]; }); }
+  function isFixed(n) { return S.st[n] === 'ok'; }
+  function wrongBadge() {
+    var open = wrongList().filter(function (n) { return !isFixed(n); }).length, b = $('#wrong-n');
+    if (b) { b.textContent = open || ''; b.hidden = !open; }
+  }
+  function shortDate(iso) { var d = new Date(iso); if (!iso || isNaN(d)) return ''; return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function wrongMarks(n) {
+    var it = document.querySelector('.wn-item[data-wn="' + n + '"]'); if (!it) return;
+    var w = S.wrong[n] || {}; it.classList.toggle('fixed', isFixed(n));
+    var c = it.querySelector('.wn-c'); if (c) c.textContent = '틀린 횟수 ' + (w.c || 1) + '번';
+    var t = it.querySelector('.wn-t'); if (t) t.textContent = w.t ? '마지막 ' + shortDate(w.t) : '';
+    wrongCounts();
+  }
+  function wrongCounts() {
+    var all = wrongList(), fixed = all.filter(isFixed).length;
+    var set = function (k, v) { var el = $('#wn-cnt-' + k); if (el) el.textContent = v; };
+    set('open', all.length - fixed); set('fixed', fixed); set('all', all.length);
+  }
+  function renderWrong() {
+    var v = $('#wrong-view'); if (!v) return;
+    $('#stage-view').innerHTML = ''; // 같은 문제 카드가 두 곳에 생기지 않게
+    var all = wrongList(), fixed = all.filter(isFixed);
+    var list = S.wf === 'fixed' ? fixed : S.wf === 'all' ? all : all.filter(function (n) { return !isFixed(n); });
+    if (S.ws === 'chapter') list.sort(function (a, b) { return a - b; });
+    else list.sort(function (a, b) { return String((S.wrong[b] || {}).t || '').localeCompare(String((S.wrong[a] || {}).t || '')) || a - b; });
+    var h = '<div class="stage-head"><div class="eyebrow">SQL · 오답노트</div><h2>오답노트</h2>' +
+      '<p class="wn-sub">채점에서 틀렸거나 ‘다시 풀래요’를 고른 문제가 자동으로 모여요. 여기서 바로 다시 풀 수 있고, 맞히면 ‘다시 맞힘’으로 옮겨져요.</p></div>';
+    h += '<div class="lvbar wn-bar" role="group" aria-label="오답 보기">' +
+      [['open', '아직 못 맞힘', all.length - fixed.length], ['fixed', '다시 맞힘', fixed.length], ['all', '전체', all.length]].map(function (x) {
+        return '<button type="button" class="lvbtn" data-wf="' + x[0] + '" aria-pressed="' + (S.wf === x[0]) + '">' + x[1] + ' <span id="wn-cnt-' + x[0] + '">' + x[2] + '</span></button>';
+      }).join('') +
+      '<label class="wn-sort">정렬 <select id="wn-sort"><option value="recent"' + (S.ws === 'recent' ? ' selected' : '') + '>최근 틀린 순</option><option value="chapter"' + (S.ws === 'chapter' ? ' selected' : '') + '>장 순서</option></select></label></div>';
+    if (!all.length) h += '<div class="empty-lv">아직 틀린 문제가 없어요. 실습 문제를 풀다가 틀리면 여기에 모여요.</div>';
+    else if (!list.length) h += '<div class="empty-lv">' + (S.wf === 'open' ? '못 맞힌 문제를 모두 다시 맞혔어요. 잘했어요!' : '아직 다시 맞힌 문제가 없어요.') + '</div>';
+    else {
+      var lastStage = -1;
+      h += '<div class="cards">';
+      list.forEach(function (n) {
+        var si = STAGE_OF[n], s = STAGES[si], w = S.wrong[n] || {};
+        if (S.ws === 'chapter' && si !== lastStage) { h += '<h3 class="sub-h wn-grp">' + esc(s.label + ' ' + s.short) + '</h3>'; lastStage = si; }
+        h += '<div class="wn-item' + (isFixed(n) ? ' fixed' : '') + '" data-wn="' + n + '"><div class="wn-meta">' +
+          '<span class="wn-where">' + esc(s.label + ' · ' + s.short) + '</span><span class="wn-c">틀린 횟수 ' + (w.c || 1) + '번</span><span class="wn-t">' + (w.t ? '마지막 ' + shortDate(w.t) : '') + '</span>' +
+          '<span class="wn-ok">다시 맞힘</span><button type="button" class="wn-rm" data-wnrm="' + n + '">오답노트에서 빼기</button></div>' + cardHtml(ITEM[n]) + '</div>';
+      });
+      h += '</div>';
+    }
+    v.innerHTML = h;
+    $$('textarea', v).forEach(function (ta) { ta.value = S.ans[ta.dataset.n] || ''; fit(ta); });
+  }
+  document.addEventListener('click', function (e) {
+    var f = e.target.closest('[data-wf]'); if (f) { S.wf = f.dataset.wf; save(); renderWrong(); return; }
+    var rm = e.target.closest('[data-wnrm]'); if (rm) { var n = +rm.dataset.wnrm; delete S.wrong[n]; save(); var it = rm.closest('.wn-item'); if (it) it.remove(); wrongCounts(); wrongBadge(); }
+  });
+  document.addEventListener('change', function (e) { if (e.target.id === 'wn-sort') { S.ws = e.target.value; save(); renderWrong(); } });
+
   // ---------- routing ----------
-  var VIEWS = ['problems', 'concepts', 'cheatsheet', 'jproblems', 'java', 'jcheat'];
+  var VIEWS = ['problems', 'concepts', 'cheatsheet', 'wrong', 'jproblems', 'java', 'jcheat', 'jwrong'];
   function route() {
     var v = (location.hash || '').slice(1); if (VIEWS.indexOf(v) < 0) v = 'problems';
     VIEWS.forEach(function (x) { $('#view-' + x).hidden = x !== v; });
     $$('.tabs a').forEach(function (a) { if (a.dataset.view === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-    var isJava = v === 'java' || v === 'jproblems' || v === 'jcheat';
+    var isJava = v === 'java' || v === 'jproblems' || v === 'jcheat' || v === 'jwrong';
+    if (v === 'wrong') renderWrong(); else if (v === 'problems' && !$('#stage-view').children.length) showStage(S.stage);
+    if (WB.onView) WB.onView(v);
     if (!isJava) lastSql = v; else lastJava = v;
     document.documentElement.classList.toggle('cat-java', isJava);
     if (WB.onCategory) WB.onCategory(isJava);
@@ -617,7 +742,7 @@
   var lastSql = 'problems', lastJava = 'jproblems';
   window.addEventListener('hashchange', function () { route(); window.scrollTo({ top: 0 }); });
 
-  document.addEventListener('click', function (e) { if (e.target.closest('#stage-view')) onCardClick(e); });
+  document.addEventListener('click', function (e) { if (e.target.closest('#stage-view') || e.target.closest('#wrong-view')) onCardClick(e); });
   document.addEventListener('click', function (e) {
     var a = e.target.closest('[data-concept]'); if (!a) return; e.preventDefault();
     if (location.hash !== '#concepts') { location.hash = 'concepts'; }
@@ -635,6 +760,7 @@
   WB.$ = $; WB.$$ = $$; WB.esc = esc; WB.mark = mark; WB.buildToc = buildToc;
   WB.b64 = b64; WB.unb64 = unb64; WB.pipe = pipe; WB.whenStr = whenStr; WB.plainDownload = plainDownload;
   WB.downloads = function () { return downloadsP; };
+  WB.recHtml = recHtml; WB.snippet = snippet; WB.shortDate = shortDate;
   // 모든 스크립트를 읽은 뒤 js/main.js가 부른다
   WB.boot = function () {
     if (WB.initJava) WB.initJava();

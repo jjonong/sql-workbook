@@ -31,8 +31,8 @@
 
   // ---------- JAVA: 실습 문제 & 핵심 정리 ----------
   var JKEY = 'javawb:v1';
-  var JS = { ch: 1, lv: 0, a: {}, st: {} };
-  try { var jraw = localStorage.getItem(JKEY); if (jraw) { var jo = JSON.parse(jraw); if (jo && typeof jo === 'object') { JS.ch = jo.ch || 1; JS.lv = jo.lv || 0; JS.a = jo.a || {}; JS.st = jo.st || {}; } } } catch (e) {}
+  var JS = { ch: 1, lv: 0, a: {}, st: {}, wrong: {}, wf: 'open', ws: 'recent' };
+  try { var jraw = localStorage.getItem(JKEY); if (jraw) { var jo = JSON.parse(jraw); if (jo && typeof jo === 'object') { JS.ch = jo.ch || 1; JS.lv = jo.lv || 0; JS.a = jo.a || {}; JS.st = jo.st || {}; JS.wrong = jo.wrong || {}; JS.wf = jo.wf || 'open'; JS.ws = jo.ws || 'recent'; } } } catch (e) {}
   var jsaveT;
   function jsave() { clearTimeout(jsaveT); jsaveT = setTimeout(function () { try { localStorage.setItem(JKEY, JSON.stringify(JS)); } catch (e) {} }, 250); }
   var JLV = { 1: '기초', 2: '응용', 3: '심화' };
@@ -40,17 +40,30 @@
   var JSTL = { ok: '정답', bad: '오답', seen: '답만 확인', draft: '작성 중' };
   var JP = WJX.problems, JCH = WJX.chapters;
   // 문제 데이터에는 코드가 일반 텍스트로 들어 있어요. 화면에 그릴 때 색을 입혀요.
+  var JFEAT = {}, JDF = {};
+  var JREC_STOP = { public: 1, static: 1, void: 1, int: 1, class: 1, new: 1, return: 1, String: 1, System: 1, out: 1, println: 1, print: 1, main: 1, args: 1, Main: 1, i: 1, j: 1, n: 1, a: 1, b: 1, s: 1, x: 1, y: 1, p: 1, e: 1, c: 1, t: 1, k: 1, v: 1 };
   JP.forEach(function (p) {
+    // 연관 문제 추천용 특징: 코드·답안에 쓰인 식별자와 키워드, 문제 글의 <code> 안 낱말
+    var f = {}, src = (p.code || '') + '\n' + (p.t === 'self' ? p.answer : '') + '\n' + (String(p.q).match(/<code>[\s\S]*?<\/code>/g) || []).join(' ').replace(/<[^>]+>/g, ' ');
+    (src.match(/[A-Za-z_][\w]*/g) || []).forEach(function (w) { if (w.length > 1 && !JREC_STOP[w]) f[w] = 1; });
+    (p.kw || []).forEach(function (k) { (String(k).match(/[A-Za-z_][\w.]*/g) || []).forEach(function (w) { if (!JREC_STOP[w]) f[w] = 1; }); });
+    JFEAT[p.n] = f; Object.keys(f).forEach(function (w) { JDF[w] = (JDF[w] || 0) + 1; });
     p.code = p.code ? hlJava(p.code) : '';
     if (p.t === 'self') p.answer = hlJava(p.answer);
   });
   var jbyN = {}; JP.forEach(function (p) { jbyN[p.n] = p; });
   function jOfCh(ch) { return JP.filter(function (p) { return p.ch === ch; }); }
-  function jSetSt(n, st) { if (st) JS.st[n] = st; else delete JS.st[n]; jsave(); jRefresh(); var s = $('#jq-' + n + ' .status'); if (s) { s.dataset.st = st || ''; s.textContent = st ? JSTL[st] : ''; } }
+  function jSetSt(n, st) {
+    var prev = JS.st[n];
+    if (st) JS.st[n] = st; else delete JS.st[n];
+    if (st === 'bad') { var w = JS.wrong[n] || (JS.wrong[n] = { c: 0 }); w.c++; w.t = new Date().toISOString(); delete w.ok; }
+    if (st === 'ok' && JS.wrong[n] && prev !== 'ok') JS.wrong[n].ok = new Date().toISOString();
+    jsave(); jRefresh(); jShowRec(n, st === 'bad'); jWrongMarks(n); var s = $('#jq-' + n + ' .status'); if (s) { s.dataset.st = st || ''; s.textContent = st ? JSTL[st] : ''; } }
   function jNorm(s) { return String(s || '').replace(/\r/g, '').split('\n').map(function (l) { return l.replace(/\s+$/, ''); }).join('\n').replace(/^\n+|\n+$/g, ''); }
   function jFlat(s) { return String(s || '').replace(/\s+/g, ''); }
 
   function jRefresh() {
+    jWrongBadge();
     var ok = 0, done = 0;
     JP.forEach(function (p) { var s = JS.st[p.n]; if (s === 'ok') ok++; if (s === 'ok' || s === 'bad') done++; });
     $('#jst-ok').textContent = ok; $('#jst-done').textContent = done; $('#jst-total').textContent = '푼 문제 / ' + JP.length;
@@ -79,7 +92,7 @@
     $('#jdg-close').addEventListener('click', function () { $$('#jdots details').forEach(function (d) { d.open = false; }); });
     $('#jclear').addEventListener('click', function () { $('#jclear-confirm').hidden = false; });
     $('#jclear-no').addEventListener('click', function () { $('#jclear-confirm').hidden = true; });
-    $('#jclear-yes').addEventListener('click', function () { JS.a = {}; JS.st = {}; jsave(); $('#jclear-confirm').hidden = true; jShow(JS.ch); jRefresh(); });
+    $('#jclear-yes').addEventListener('click', function () { JS.a = {}; JS.st = {}; JS.wrong = {}; jsave(); $('#jclear-confirm').hidden = true; jShow(JS.ch); jRefresh(); });
     if (window.matchMedia('(max-width: 960px)').matches) { $('#jpanel-progress').classList.remove('open'); $('#jpanel-data').classList.remove('open'); }
   }
 
@@ -262,7 +275,7 @@
   }
 
   function jInitEvents() {
-    var view = $('#view-jproblems');
+    [$('#view-jproblems'), $('#view-jwrong')].forEach(function (view) {
     view.addEventListener('click', function (e) {
       var lb = e.target.closest('[data-jlevel]'); if (lb) { JS.lv = +lb.dataset.jlevel; jsave(); jShow(JS.ch); return; }
       var gb = e.target.closest('[data-jgo]'); if (gb) { jShow(+gb.dataset.jgo); window.scrollTo({ top: 0 }); return; }
@@ -304,6 +317,7 @@
     view.addEventListener('keydown', function (e) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { var ta = e.target.closest('textarea[data-jn]'); if (ta) { e.preventDefault(); var p = jbyN[ta.dataset.jn]; if (p.t === 'out') jGrade(p); else $('#jq-' + p.n + ' [data-jact="reveal"]').click(); } }
     });
+    });
   }
 
   function jWireSearch(doc, q, cntEl) {
@@ -325,6 +339,102 @@
     });
   }
 
+  // ---------- 연관 문제 추천 ----------
+  Object.keys(JS.st).forEach(function (k) { if (JS.st[k] === 'bad' && !JS.wrong[k]) JS.wrong[k] = { c: 1, t: null }; });
+  function jIdf(w) { return Math.log(JP.length / (JDF[w] || 1)); }
+  function jRelated(n, k) {
+    var me = JFEAT[n] || {}, src = jbyN[n], out = [];
+    JP.forEach(function (p) {
+      if (p.n === n) return;
+      var f = JFEAT[p.n], shared = Object.keys(me).filter(function (w) { return f[w]; });
+      var sc = shared.reduce(function (t, w) { return t + Math.min(jIdf(w), 4); }, 0);
+      if (p.ch === src.ch) sc += 2.5;
+      if (sc <= 2) return;
+      if (p.lv === src.lv) sc += .6; else if (p.lv < src.lv) sc += .3;
+      if (p.t === src.t) sc += .4;
+      var st = JS.st[p.n]; if (st === 'ok') sc -= 3; else if (st === 'bad') sc -= .5;
+      shared.sort(function (a, b) { return jIdf(b) - jIdf(a); });
+      out.push({ n: p.n, sc: sc, why: shared.filter(function (w) { return JDF[w] > 1; }).slice(0, 3), sub: p.ch === src.ch });
+    });
+    out.sort(function (a, b) { return b.sc - a.sc || a.n - b.n; });
+    return out.slice(0, k || 3);
+  }
+  function jRecText(p) {
+    if (p.t !== 'out') return WB.snippet(p.q, 64);
+    var lines = jText(p.code).split('\n').map(function (l) { return l.trim(); }).filter(function (l) {
+      return l && !/^(public\s+)?(static\s+)?(class\s+Main|void\s+main|public static void main)|^[{}]+$|^import\s/.test(l);
+    });
+    return '출력 결과 맞히기 · ' + (lines && lines.length ? lines[0].slice(0, 56) : '코드 실행 결과');
+  }
+  function jShowRec(n, on) {
+    var card = $('#jq-' + n); if (!card) return;
+    var box = card.querySelector('.rec');
+    if (!on) { if (box) box.remove(); return; }
+    var list = jRelated(n, 3); if (!list.length) return;
+    if (!box) { box = document.createElement('div'); box.className = 'rec'; card.appendChild(box); }
+    box.innerHTML = WB.recHtml(list.map(function (r) { var p = jbyN[r.n]; return { n: r.n, lv: p.lv, lvName: JLV[p.lv], text: (p.ch !== jbyN[n].ch ? p.ch + '장 · ' : '') + jRecText(p), why: r.why, sub: false }; }), 'data-jrecgo');
+  }
+  document.addEventListener('click', function (e) { var b = e.target.closest('[data-jrecgo]'); if (b) jGoto(+b.dataset.jrecgo); });
+
+  // ---------- 오답노트 ----------
+  function jWrongList() { return Object.keys(JS.wrong).map(Number).filter(function (n) { return jbyN[n]; }); }
+  function jFixed(n) { return JS.st[n] === 'ok'; }
+  function jWrongBadge() {
+    var open = jWrongList().filter(function (n) { return !jFixed(n); }).length, b = $('#jwrong-n');
+    if (b) { b.textContent = open || ''; b.hidden = !open; }
+  }
+  function jWrongCounts() {
+    var all = jWrongList(), fixed = all.filter(jFixed).length;
+    var set = function (k, v) { var el = $('#jwn-cnt-' + k); if (el) el.textContent = v; };
+    set('open', all.length - fixed); set('fixed', fixed); set('all', all.length);
+  }
+  function jWrongMarks(n) {
+    var it = document.querySelector('.wn-item[data-jwn="' + n + '"]'); if (!it) return;
+    var w = JS.wrong[n] || {}; it.classList.toggle('fixed', jFixed(n));
+    var c = it.querySelector('.wn-c'); if (c) c.textContent = '틀린 횟수 ' + (w.c || 1) + '번';
+    var t = it.querySelector('.wn-t'); if (t) t.textContent = w.t ? '마지막 ' + WB.shortDate(w.t) : '';
+    jWrongCounts();
+  }
+  function jRenderWrong() {
+    var v = $('#jwrong-view'); if (!v) return;
+    $('#jstage-view').innerHTML = ''; // 같은 문제 카드가 두 곳에 생기지 않게
+    var all = jWrongList(), fixed = all.filter(jFixed);
+    var list = JS.wf === 'fixed' ? fixed : JS.wf === 'all' ? all : all.filter(function (n) { return !jFixed(n); });
+    if (JS.ws === 'chapter') list.sort(function (a, b) { return jbyN[a].ch - jbyN[b].ch || a - b; });
+    else list.sort(function (a, b) { return String((JS.wrong[b] || {}).t || '').localeCompare(String((JS.wrong[a] || {}).t || '')) || a - b; });
+    var h = '<div class="stage-head"><div class="eyebrow">JAVA · 오답노트</div><h2>오답노트</h2>' +
+      '<p class="wn-sub">채점에서 틀렸거나 ‘틀렸어요’를 고른 문제가 자동으로 모여요. 여기서 바로 다시 풀 수 있고, 맞히면 ‘다시 맞힘’으로 옮겨져요.</p></div>';
+    h += '<div class="lvbar wn-bar" role="group" aria-label="오답 보기">' +
+      [['open', '아직 못 맞힘', all.length - fixed.length], ['fixed', '다시 맞힘', fixed.length], ['all', '전체', all.length]].map(function (x) {
+        return '<button type="button" class="lvbtn" data-jwf="' + x[0] + '" aria-pressed="' + (JS.wf === x[0]) + '">' + x[1] + ' <span id="jwn-cnt-' + x[0] + '">' + x[2] + '</span></button>';
+      }).join('') +
+      '<label class="wn-sort">정렬 <select id="jwn-sort"><option value="recent"' + (JS.ws === 'recent' ? ' selected' : '') + '>최근 틀린 순</option><option value="chapter"' + (JS.ws === 'chapter' ? ' selected' : '') + '>장 순서</option></select></label></div>';
+    if (!all.length) h += '<div class="empty-lv">아직 틀린 문제가 없어요. 실습 문제를 풀다가 틀리면 여기에 모여요.</div>';
+    else if (!list.length) h += '<div class="empty-lv">' + (JS.wf === 'open' ? '못 맞힌 문제를 모두 다시 맞혔어요. 잘했어요!' : '아직 다시 맞힌 문제가 없어요.') + '</div>';
+    else {
+      var lastCh = -1;
+      h += '<div class="cards">';
+      list.forEach(function (n) {
+        var p = jbyN[n], c = JCH.filter(function (x) { return x.no === p.ch; })[0], w = JS.wrong[n] || {};
+        if (JS.ws === 'chapter' && p.ch !== lastCh) { h += '<h3 class="sub-h wn-grp">' + esc(c.title) + '</h3>'; lastCh = p.ch; }
+        h += '<div class="wn-item' + (jFixed(n) ? ' fixed' : '') + '" data-jwn="' + n + '"><div class="wn-meta">' +
+          '<span class="wn-where">' + p.ch + '장 · ' + esc(c.short) + '</span><span class="wn-c">틀린 횟수 ' + (w.c || 1) + '번</span><span class="wn-t">' + (w.t ? '마지막 ' + WB.shortDate(w.t) : '') + '</span>' +
+          '<span class="wn-ok">다시 맞힘</span><button type="button" class="wn-rm" data-jwnrm="' + n + '">오답노트에서 빼기</button></div>' + jCard(p) + '</div>';
+      });
+      h += '</div>';
+    }
+    v.innerHTML = h;
+  }
+  document.addEventListener('click', function (e) {
+    var f = e.target.closest('[data-jwf]'); if (f) { JS.wf = f.dataset.jwf; jsave(); jRenderWrong(); return; }
+    var rm = e.target.closest('[data-jwnrm]'); if (rm) { var n = +rm.dataset.jwnrm; delete JS.wrong[n]; jsave(); var it = rm.closest('.wn-item'); if (it) it.remove(); jWrongCounts(); jWrongBadge(); }
+  });
+  document.addEventListener('change', function (e) { if (e.target.id === 'jwn-sort') { JS.ws = e.target.value; jsave(); jRenderWrong(); } });
+  WB.onView = function (v) {
+    if (v === 'jwrong') jRenderWrong();
+    else if (v === 'jproblems' && !$('#jstage-view').children.length) jShow(JS.ch);
+  };
+
   function initJava() {
     $('#doc-jcheat').innerHTML = WJX.cheat;
     buildToc($('#doc-jcheat'), $('#toc-jcheat'), 'h1, h2');
@@ -334,7 +444,7 @@
 
   // ---------- JAVA: 기록 저장·불러오기 ----------
   function jMsg(t) { $('#jsync-msg').textContent = t; }
-  function jPack() { return { app: 'java-workbook', v: 1, savedAt: new Date().toISOString(), total: JP.length, a: JS.a, st: JS.st, ch: JS.ch, lv: JS.lv }; }
+  function jPack() { return { app: 'java-workbook', v: 1, savedAt: new Date().toISOString(), total: JP.length, a: JS.a, st: JS.st, wrong: JS.wrong, ch: JS.ch, lv: JS.lv }; }
   function jCount(o) { var a = o.a || {}; return Object.keys(o.st || {}).filter(function (k) { return o.st[k] !== 'draft'; }).length + ' 문제 기록, 답 ' + Object.keys(a).filter(function (k) { return typeof a[k] === 'number' || String(a[k] || '').trim(); }).length + '개'; }
   function jMakeCode() {
     var raw = new TextEncoder().encode(JSON.stringify(jPack()));
@@ -356,8 +466,10 @@
     Object.keys(o.a || {}).forEach(function (k) { if (jbyN[k]) a[k] = o.a[k]; });
     Object.keys(o.st || {}).forEach(function (k) { if (jbyN[k] && JSTL[o.st[k]]) st[k] = o.st[k]; });
     JS.a = a; JS.st = st; JS.ch = o.ch || 1; JS.lv = o.lv || 0;
+    JS.wrong = {}; Object.keys(o.wrong || {}).forEach(function (k) { if (jbyN[k]) JS.wrong[k] = o.wrong[k]; });
+    Object.keys(st).forEach(function (k) { if (st[k] === 'bad' && !JS.wrong[k]) JS.wrong[k] = { c: 1, t: null }; });
     try { localStorage.setItem(JKEY, JSON.stringify(JS)); } catch (e) {}
-    jShow(JS.ch); jRefresh();
+    jShow(JS.ch); jRefresh(); if (location.hash === '#jwrong') jRenderWrong();
     jMsg('불러왔어요. ' + jCount(JS) + (o.savedAt ? ' (' + whenStr(o.savedAt) + ' 저장)' : '') + '.');
   }
   function jConfirm(o) {
