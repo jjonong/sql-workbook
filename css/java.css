@@ -1,0 +1,41 @@
+/* JAVA 화면 전용 스타일 (객관식 보기, 기록 패널, Java 연습장, 코드 작성 문제) */
+html:not(.cat-java) .jfab, html:not(.cat-java) .jscratch { display: none !important; }
+.jfab { font-size: 12px; }
+.scratch.jscratch .editor textarea { min-height: 170px; max-height: 42vh; white-space: pre; overflow-wrap: normal; overflow-x: auto; tab-size: 4; }
+.jscratch .scratch-h b { white-space: nowrap; }
+@media (max-width: 520px) { .jscratch .scratch-h span { display: none; } }
+.jspec-l { margin: 10px 0 4px; }
+.q pre.code.jdemo { margin-top: 0; }
+.jscratch .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.jres-h { display: flex; align-items: center; gap: 8px; }
+.jpill { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.jpill.ok { background: var(--ok-soft); color: var(--ok); }
+.jpill.bad { background: var(--bad-soft); color: var(--bad); }
+.jpill.wait { animation: jpulse 1.2s ease-in-out infinite; }
+@keyframes jpulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .jpill.wait { animation: none; } }
+.jres-by { font-size: 11.5px; color: var(--muted); margin-left: auto; letter-spacing: .02em; }
+pre.jcon { margin: 0; font-family: var(--f-mono); font-size: 13px; line-height: 1.55; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 2.4em; }
+pre.jcon.err { border-color: color-mix(in srgb, var(--bad) 40%, var(--line-2)); }
+.jdim { color: var(--muted); }
+.jwhy { margin: 0; font-size: 13.5px; line-height: 1.6; }
+.jnote { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--muted); }
+.jscratch .msg { white-space: pre-line; font-family: inherit; font-size: 13px; line-height: 1.6; }
+.choices { display: flex; flex-direction: column; gap: 6px; margin: 6px 18px 0; }
+.choice { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; cursor: pointer; background: var(--surface); font-size: 14.5px; }
+.choice:hover { border-color: var(--muted); }
+.choice input { margin-top: 5px; accent-color: var(--accent); flex: none; }
+.choice .cno { font-weight: 600; color: var(--muted); margin-right: 2px; }
+.choice.right { border-color: var(--ok); background: var(--ok-soft); }
+.choice.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.q pre.code { margin: 8px 0 6px; }
+.verdict code { font-family: var(--f-mono); font-size: 12.5px; background: var(--surface); border-radius: 4px; padding: 0 4px; white-space: pre-wrap; }
+@media (max-width: 960px) { #jpanel-stages { display: none; } }
+#jpanel-sync { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface)); }
+#jpanel-sync h3 { color: var(--accent); }
+#jpanel-sync h3::before { content: ""; width: 14px; height: 14px; flex: none; background: currentColor; -webkit-mask: var(--ic-sync) center / contain no-repeat; mask: var(--ic-sync) center / contain no-repeat; }
+#jpanel-sync h3::after { border-color: var(--accent); }
+#jpanel-sync .sync-row > .btn { background: var(--surface); }
+#jpanel-sync #jsync-code, #jpanel-sync #jsync-save { border-color: var(--accent); color: var(--accent); }
+#jsync-msg:empty { display: none; }
+@media (max-width: 560px) { .choices { margin-left: 14px; margin-right: 14px; } }
