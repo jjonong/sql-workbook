@@ -1,0 +1,83 @@
+/* 내 필기: 오른쪽 가장자리 탭을 누르면 열리는 사이드 패널 (글자 + 펜) */
+:root { --nt-w: 440px; }
+.nt-tab {
+  position: fixed; z-index: 46; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 7px 10px; border: 1px solid var(--line); border-right: 0; border-radius: 10px 0 0 10px;
+  background: var(--surface); color: var(--accent); cursor: pointer; box-shadow: -2px 2px 12px rgba(0,0,0,.08);
+  font: 600 12.5px/1.2 var(--f-body);
+  transition: right .22s ease, background .15s;
+}
+.nt-tab svg { width: 16px; height: 16px; flex: none; margin-bottom: 2px; }
+.nt-tab span { display: block; }
+.nt-tab:hover { background: var(--accent-soft); }
+.nt-open .nt-tab { right: min(var(--nt-w), 100vw); background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.notes {
+  position: fixed; z-index: 45; top: 0; right: 0; bottom: 0; width: min(var(--nt-w), 100vw);
+  display: flex; flex-direction: column; background: var(--surface); border-left: 1px solid var(--line);
+  box-shadow: -10px 0 40px rgba(0,0,0,.14); transform: translateX(102%); visibility: hidden;
+  transition: transform .22s ease, visibility 0s linear .22s;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.nt-open .notes { transform: none; visibility: visible; transition: transform .22s ease; }
+@media (prefers-reduced-motion: reduce) { .notes, .nt-tab { transition: none !important; } }
+@media (max-width: 520px) { .nt-open .nt-tab { display: none; } }
+/* 넓은 화면에서는 패널을 연 동안 본문을 옆으로 비켜 줘요 */
+@media (min-width: 1300px) { .nt-open .wrap, .nt-open .top-in { padding-right: calc(var(--nt-w) + 24px); } }
+
+.nt-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 8px 14px; border-bottom: 1px solid var(--line-2); }
+.nt-head b { font-size: 14.5px; white-space: nowrap; margin-right: 2px; }
+.nt-head select { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 13.5px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.nt-ib { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; padding: 0; }
+.nt-ib:hover { background: var(--surface-2); color: var(--ink); }
+.nt-ib[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.nt-ib svg { width: 17px; height: 17px; }
+.nt-ib.danger { color: var(--bad); background: var(--bad-soft); width: auto; padding: 0 9px; font-size: 12px; font-weight: 600; }
+
+.nt-tools { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; padding: 7px 10px; border-bottom: 1px solid var(--line-2); background: var(--surface-2); }
+.nt-mode { display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 2px; margin-right: 4px; }
+.nt-mode button { border: 0; background: none; border-radius: 999px; padding: 4px 11px; font: 600 12.5px var(--f-body); color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.nt-mode button svg { width: 14px; height: 14px; }
+.nt-mode button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.nt-pen { display: contents; }
+.nt-tools2 { gap: 6px; padding-top: 6px; }
+.nt-tools2[hidden] { display: none !important; }
+.nt-group { display: flex; align-items: center; gap: 6px; }
+.nt-pen[hidden] { display: none !important; }
+.nt-sep { width: 1px; height: 20px; background: var(--line); margin: 0 3px; }
+.nt-sw { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; flex: none; }
+.nt-sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--accent); }
+.nt-sz { width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; cursor: pointer; padding: 0; }
+.nt-sz i { display: block; border-radius: 50%; background: var(--ink); }
+.nt-sz[aria-pressed="true"] { background: var(--accent-soft); }
+.nt-text-tools { display: contents; }
+.nt-text-tools[hidden] { display: none !important; }
+.nt-tools .btn { padding: 4px 9px; font-size: 12.5px; }
+
+.nt-sheet { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; background: var(--surface); }
+.nt-paper { position: relative; min-height: 100%; }
+.nt-title { display: block; width: 100%; border: 0; border-bottom: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 700 17px var(--f-body); padding: 14px 18px 10px; outline: none; }
+.nt-title::placeholder { color: var(--muted); font-weight: 500; }
+.nt-text {
+  display: block; width: 100%; resize: none; overflow: hidden; border: 0; outline: none; color: var(--ink);
+  font: 15px/28px var(--f-body); padding: 6px 18px 28px; min-height: 280px; tab-size: 4;
+  background: transparent repeating-linear-gradient(to bottom, transparent 0 27px, var(--line-2) 27px 28px);
+  background-position: 0 6px; background-attachment: local;
+}
+.nt-text::placeholder { color: var(--muted); }
+.nt-ink { position: absolute; left: 0; top: 0; width: 100%; pointer-events: none; }
+.nt-drawing .nt-ink { pointer-events: auto; cursor: crosshair; touch-action: none; }
+.nt-drawing.nt-pen-seen .nt-ink { touch-action: pan-y; }
+.nt-drawing .nt-text, .nt-drawing .nt-title { user-select: none; -webkit-user-select: none; }
+.nt-erasing .nt-ink { cursor: cell; }
+
+.nt-foot { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-top: 1px solid var(--line-2); font-size: 11.5px; color: var(--muted); }
+.nt-foot .nt-st { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-foot .nt-st.err { color: var(--bad); white-space: normal; }
+.nt-menu { position: absolute; right: 10px; top: 50px; z-index: 2; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.16); padding: 6px; display: flex; flex-direction: column; min-width: 190px; }
+.nt-menu[hidden] { display: none; }
+.nt-menu button { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; font: 13.5px var(--f-body); color: var(--ink); cursor: pointer; }
+.nt-menu button:hover { background: var(--surface-2); }
+.nt-menu hr { border: 0; border-top: 1px solid var(--line-2); margin: 4px 2px; }
+.nt-menu .danger { color: var(--bad); }

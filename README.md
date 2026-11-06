@@ -9,11 +9,13 @@ index.html              화면 뼈대(HTML)만. CSS·JS·데이터는 아래 파
 css/
   style.css             공통 + SQL 화면 스타일 (색상 변수, 라이트/다크 모드 포함)
   java.css              JAVA 화면 전용 스타일
+  notes.css             내 필기 사이드 패널 스타일
 js/
   theme-init.js         화면이 그려지기 전에 라이트/다크 설정 적용
   oralite.js            Oracle 문법을 SQLite(sql.js)에서 돌려주는 SQL 실행기
   app.js                공통 화면(SQL/JAVA 전환, 탭, 테마) + SQL 실습 문제·SQL 연습장
   java.js               JAVA 실습 문제, 기록 저장·불러오기, Java 연습장, Claude 채점
+  notes.js              내 필기 (오른쪽 사이드 패널: 글자 + 펜 필기, 페이지, 이미지·파일 저장)
   main.js               모든 파일을 읽은 뒤 화면을 시작
 data/
   sql-tables.js         SQL 실습 테이블과 데이터
@@ -60,3 +62,4 @@ node tools/verify-java.js 421      # 421번 문제만 (14 이상은 문제 번�
 - **SQL 실행기**: 실행할 때 jsDelivr에서 sql.js를 불러오므로 인터넷 연결이 필요해요.
 - **Java 연습장과 Claude 채점**: claude.ai에 올린 페이지에서만 동작해요. 브라우저에서 진짜 JVM을 돌릴 수 없어서 Claude가 코드를 읽고 결과를 예측하는 방식이에요. GitHub에서 열면 사용할 수 없다는 안내가 나와요.
 - **풀이 기록**: 브라우저 localStorage에 저장돼요. SQL은 `sqlwb:v3`, JAVA는 `javawb:v1` 키를 써요.
+- **내 필기**: 같은 브라우저의 localStorage `wbnotes:v1`에 페이지마다 글자와 펜 획(좌표 목록)을 저장해요. 패널의 ⋮ 메뉴에서 파일로 백업하거나 다른 기기에서 불러올 수 있어요.
